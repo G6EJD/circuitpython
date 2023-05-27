@@ -1,20 +1,18 @@
+# Adafruit Huzzah consumes 156uA in deep sleep mode
+# Consumes 
 import gc
-import time
-import rtc
-import adafruit_ntp
-import alarm
+import time, rtc, adafruit_ntp, alarm
 import ssl
 import json
 import wifi
 import socketpool
-import adafruit_requests
-import busio
 import board
-import displayio
+import displayio, busio
 import terminalio
+import adafruit_requests
 import adafruit_il0373
-from adafruit_display_text import label
-from adafruit_display_shapes.rect import Rect
+from   adafruit_display_text import label
+from   adafruit_display_shapes.rect import Rect
 
 WIDTH  = 296
 HEIGHT = 128
@@ -124,7 +122,7 @@ def wifi_connect():
           print("Retrying in 10 seconds")
       time.sleep(10)
       gc.collect()
-
+      
 wifi_connect()
 
 print("Connected!")
@@ -147,10 +145,14 @@ def _format_datetime(datetime):
 # Europe/London
 ntp = adafruit_ntp.NTP(pool, tz_offset=1)
     
-rtc.RTC().datetime = ntp.datetime
-timenow = time.localtime()
-timestr = _format_datetime(timenow)
-
+try:
+    rtc.RTC().datetime = ntp.datetime
+    timenow = time.localtime()
+    timestr = _format_datetime(timenow)
+except:
+    print("NTP Error detected")
+    timestr = "Time Error"
+    
 print(timestr)
 
 print("\nAttempting to GET GE Stats!")  # --------------------------------
@@ -281,3 +283,4 @@ print ("N-Secs in deep sleep")
 alarm.exit_and_deep_sleep_until_alarms(time_alarm)
 # Does not return, we never get here.
     
+
