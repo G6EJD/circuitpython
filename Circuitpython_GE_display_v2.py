@@ -125,18 +125,33 @@ def wifi_connect():
       time.sleep(10)
       gc.collect()
 
-try:
-    wifi.radio.connect(secrets["ssid"], secrets["password"])
-    print("Connected to %s!"%secrets["ssid"])
-    print("IP address is", wifi.radio.ipv4_address)
-except ConnectionError as e:
-    print("Connection Error:", e)
-    print("Retrying in 10 seconds")
-    time.sleep(10)
+wifi_connect()
 
 print("Connected!")
 pool = socketpool.SocketPool(wifi.radio)
 requests = adafruit_requests.Session(pool, ssl.create_default_context())
+
+now_local = time.localtime()
+
+def _format_datetime(datetime):
+    return "{:02}/{:02}/{}  {:02}:{:02}:{:02}".format(
+        datetime.tm_mday,
+        datetime.tm_mon,
+        datetime.tm_year,
+        datetime.tm_hour,
+        datetime.tm_min,
+        datetime.tm_sec,
+    )
+
+# https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+# Europe/London
+ntp = adafruit_ntp.NTP(pool, tz_offset=1)
+    
+rtc.RTC().datetime = ntp.datetime
+timenow = time.localtime()
+timestr = _format_datetime(timenow)
+
+print(timestr)
 
 print("\nAttempting to GET GE Stats!")  # --------------------------------
 # Print Request to Serial
@@ -200,16 +215,15 @@ if debug_response:
     print("Export Today       = ", ExportToday, "kWh")
     print("Import Today       = ", ImportToday, "kWh")
     print("Battery Throughput = ", batteryThroughputToday, "kWh")
-           
     print("\nFinished!")
     print("Next Update in %s %s" % (int(sleep_int), sleep_time_conversion))
-    print("===============================")
     gc.collect() # Run a garbage collection
 
 #---
 tile_grid  = displayio.Group()
 palette    = displayio.Palette(1)
 palette[0] = BACKGROUND_COLOR
+font       = terminalio.FONT
 
 t = displayio.TileGrid(background_bitmap, pixel_shader=palette)
 tile_grid.append(t)
@@ -220,19 +234,19 @@ tile_grid.append(soc_background_rect)
 tput_background_rect = Rect(193, 65, 101, 61, fill=WHITE, outline=0x0, stroke=0)
 tile_grid.append(tput_background_rect)
 
-soc_text_group = create_text_group(16, 10, terminalio.FONT, "SoC:" + str(stateOfCharge) + "%", 2, BLACK)
+soc_text_group = create_text_group(16, 10, font, "SoC:" + str(stateOfCharge) + "%", 2, BLACK)
 tile_grid.append(soc_text_group)
 
-battput_text_group = create_text_group(135, 10, terminalio.FONT, "TPut:" + str(batteryThroughputToday) + "kWh", 2, BLACK)
+battput_text_group = create_text_group(135, 10, font, "TPut:" + str(batteryThroughputToday) + "kWh", 2, BLACK)
 tile_grid.append(battput_text_group)
 
-chargetoday_text_group = create_text_group(23, 60, terminalio.FONT, "Charge Today = " + str(ChargeToday) + "kWh", 1, BLACK)
+chargetoday_text_group = create_text_group(23, 60, font, "Charge Today = " + str(ChargeToday) + "kWh", 1, BLACK)
 tile_grid.append(chargetoday_text_group)
 
-dischargetoday_text_group = create_text_group(5, 72, terminalio.FONT, "Discharge Today = " + str(DischargeToday) + "kWh", 1, BLACK)
+dischargetoday_text_group = create_text_group(5, 72, font, "Discharge Today = " + str(DischargeToday) + "kWh", 1, BLACK)
 tile_grid.append(dischargetoday_text_group)
 
-exporttoday_text_group = create_text_group(23, 84, terminalio.FONT, "Export Today = " + str(ExportToday) + "kWh", 1, BLACK)
+exporttoday_text_group = create_text_group(23, 84, font, "Export Today = " + str(ExportToday) + "kWh", 1, BLACK)
 tile_grid.append(exporttoday_text_group)
 
 # Draw Battery outline
@@ -250,23 +264,7 @@ if (BatteryCharge == 0):
 bat_charge = Rect(224, 44 + BatteryHeight - BatteryCharge, BatteryWidth, BatteryCharge, fill=BLACK, outline=0, stroke=0)
 tile_grid.append(bat_charge)
 
-now_local = time.localtime()
-
-def _format_datetime(datetime):
-    return "{:02}/{:02}/{}  {:02}:{:02}:{:02}".format(
-        datetime.tm_mday,
-        datetime.tm_mon,
-        datetime.tm_year,
-        datetime.tm_hour,
-        datetime.tm_min,
-        datetime.tm_sec,
-    )
-
-timenow = _format_datetime(now_local)
-
-#print(time.localtime().tm_hour,":",time.localtime().tm_min)
-
-time_group = create_text_group(20, 120, terminalio.FONT, "Updated: " + timenow, 1, BLACK)
+time_group = create_text_group(20, 120, font, "Updated: " + timestr, 1, BLACK)
 tile_grid.append(time_group)
 
 # Display the formed display
